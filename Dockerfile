@@ -28,8 +28,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/bin/jetapi .
 # Runtime stage
 FROM alpine:latest
 
-# Instalar ca-certificates e wget para healthcheck
-RUN apk --no-cache add ca-certificates wget
+# Instalar ca-certificates, wget, bind-tools (nslookup, dig) e iputils (ping) para testes de rede
+RUN apk --no-cache add ca-certificates wget bind-tools iputils
 
 WORKDIR /root/
 

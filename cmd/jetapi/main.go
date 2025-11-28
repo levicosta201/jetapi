@@ -131,10 +131,6 @@ func main() {
 	// Configurar cache manager, CloudFront e S3 nos sites
 	cacheMgr := cache.NewManager(cacheInstance, cloudFrontInstance, s3ManagerInstance)
 	sites.SetCacheManager(cacheMgr)
-	if cloudFrontInstance != nil {
-		sites.SetCloudFront(cloudFrontInstance)
-	}
-	// O cacheManager já está configurado através de SetCacheManager, não precisa de função separada
 
 	templateCache, err := newTemplateCache()
 	if err != nil {

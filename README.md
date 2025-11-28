@@ -46,6 +46,29 @@ DEV_MODE=true make run
 - Respostas HTTP de erro incluem detalhes do erro
 - Logs mais verbosos para facilitar debug
 
+### Desabilitar Cache durante Desenvolvimento
+
+Durante o desenvolvimento, você pode querer desabilitar o cache para testar mudanças sem precisar limpar o cache manualmente:
+
+```bash
+DISABLE_CACHE=true go run ./cmd/jetapi
+```
+
+Ou adicione no seu `.env`:
+```env
+DISABLE_CACHE=true
+```
+
+**Quando desabilitar o cache:**
+- ✅ Durante desenvolvimento para ver mudanças imediatamente
+- ✅ Para testar novos recursos sem cache antigo
+- ✅ Para debug de problemas relacionados ao cache
+
+**Quando manter o cache habilitado:**
+- ✅ Em produção para melhor performance
+- ✅ Para reduzir carga nos sites de origem
+- ✅ Para economizar recursos do servidor
+
 Then one can visit [localhost:8080](http://localhost:8080) to view the documentation and build a query for your local instance.
 
 ## Running with Docker
@@ -84,6 +107,8 @@ REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_PASSWORD=
 REDIS_DB=0
+# Desabilitar cache durante desenvolvimento (útil para testar mudanças)
+DISABLE_CACHE=false
 
 # Configuração do S3 (AWS) - Para armazenamento de imagens
 S3_BUCKET=alfaero
@@ -168,6 +193,8 @@ PORT=8080
 - `REDIS_PORT`: Porta do Redis (padrão: `6379`)
 - `REDIS_PASSWORD`: Senha do Redis (opcional)
 - `REDIS_DB`: Número do banco de dados Redis (padrão: `0`)
+- `DISABLE_CACHE`: Desabilitar cache (útil para desenvolvimento) - valores: `true` ou `false` (padrão: `false`)
+- `CACHE_ENABLED`: Alternativa para habilitar/desabilitar cache - valores: `true` ou `false` (padrão: `true`)
 
 **CloudFront (AWS):**
 - `CLOUDFRONT_DOMAIN`: Domínio do CloudFront (ex: `d1234567890.cloudfront.net`)
@@ -182,10 +209,21 @@ PORT=8080
 - `AWS_SECRET_ACCESS_KEY`: Chave secreta AWS
 - `S3_BASE_PATH`: Caminho base dentro do bucket (padrão: `jetapi`)
 
+**Proxies - Para evitar bloqueios (403 Forbidden):**
+- `PROXY_URLS`: Lista de URLs de proxies separadas por vírgula, ponto e vírgula, espaço ou quebra de linha
+  - Exemplo com um proxy: `PROXY_URLS=http://proxy1.example.com:8080`
+  - Exemplo com múltiplos proxies: `PROXY_URLS=http://proxy1.example.com:8080,http://proxy2.example.com:8080`
+  - Exemplo com autenticação: `PROXY_URLS=http://user:pass@proxy1.example.com:8080`
+  - Formatos suportados: HTTP, HTTPS, SOCKS5 (dependendo do Go)
+  - O sistema faz rotação automática entre os proxies (round-robin)
+  - Se um proxy falhar, tenta o próximo automaticamente
+  - Se todos falharem, tenta sem proxy como fallback
+
 **Nota:** 
 - Se você não criar o arquivo `.env`, os valores padrão serão utilizados automaticamente.
 - O cache (Redis) é opcional. Se não configurado, a API funcionará normalmente sem cache.
 - O CloudFront é opcional. Se não configurado, as URLs de imagens serão retornadas como originais.
+- Os proxies são opcionais. Se não configurados, as requisições serão feitas diretamente (pode resultar em 403 se o site bloquear).
 
 ### Usando Docker Compose (Recomendado)
 
@@ -365,6 +403,85 @@ docker-compose up -d --build
 # ou
 docker build -t jetapi . && docker restart jetapi
 ```
+
+**Problema: Recebendo 403 Forbidden do JetPhotos**
+
+O JetPhotos pode bloquear requisições que detecta como bots. Para resolver:
+
+1. **Configurar proxies:**
+   ```env
+   # No arquivo .env
+   PROXY_URLS=http://proxy1.example.com:8080,http://proxy2.example.com:8080
+   ```
+
+2. **Verificar se os proxies estão funcionando:**
+   ```bash
+   docker-compose logs -f jetapi | grep ProxyManager
+   ```
+
+3. **Usar proxies com autenticação:**
+   ```env
+   PROXY_URLS=http://usuario:senha@proxy.example.com:8080
+   ```
+
+4. **Formatos de proxy suportados:**
+   - HTTP: `http://proxy.example.com:8080`
+   - HTTPS: `https://proxy.example.com:8080`
+   - SOCKS5: `socks5://proxy.example.com:1080`
+
+5. **Rotação automática:**
+   - O sistema faz rotação automática entre múltiplos proxies
+   - Se um proxy falhar, tenta o próximo automaticamente
+   - Logs mostram qual proxy está sendo usado
+
+**Problema: Container sem acesso à internet**
+
+O container precisa de acesso à internet para fazer scraping dos sites JetPhotos e FlightRadar24. O `docker-compose.yml` já está configurado com:
+
+- **DNS servers:** Google DNS (8.8.8.8 e 8.8.4.4)
+- **Network bridge:** Habilitado com IP masquerading
+- **Extra hosts:** `host.docker.internal` para acesso ao host
+
+**Testar conectividade:**
+
+```bash
+# Testar DNS
+docker exec jetapi nslookup google.com
+
+# Testar ping
+docker exec jetapi ping -c 3 8.8.8.8
+
+# Testar HTTP
+docker exec jetapi wget -q --spider --timeout=5 https://www.jetphotos.com
+
+# Ou usar o script de teste
+bash test-internet.sh
+```
+
+**Se ainda não funcionar:**
+
+1. **Verificar firewall do host:**
+   ```bash
+   # No Linux/WSL
+   sudo ufw status
+   ```
+
+2. **Verificar configuração de rede do Docker:**
+   ```bash
+   docker network inspect jetapi_jetapi-network
+   ```
+
+3. **Verificar se o Docker tem acesso à internet:**
+   ```bash
+   docker run --rm alpine ping -c 3 8.8.8.8
+   ```
+
+4. **Reconstruir a rede:**
+   ```bash
+   docker-compose down
+   docker network prune
+   docker-compose up -d
+   ```
 
 **Problema: Arquivo .env não é reconhecido**
 - Certifique-se de que o arquivo está na raiz do projeto
