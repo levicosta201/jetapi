@@ -18,13 +18,6 @@ import (
 func (app *application) logErr(err error) {
 	trace := fmt.Sprintf("%v\n%s", err, debug.Stack())
 	app.errorLog.Println(trace)
-	
-	// Em modo de desenvolvimento, também imprime no console de forma mais visível
-	if app.devMode {
-		fmt.Fprintf(os.Stderr, "\n========== ERROR ==========\n")
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		fmt.Fprintf(os.Stderr, "===========================\n\n")
-	}
 }
 
 func (app *application) serverError(w http.ResponseWriter, err error) {
@@ -36,14 +29,7 @@ func (app *application) serverError(w http.ResponseWriter, err error) {
 		return
 	}
 	
-	// Em modo de desenvolvimento, mostra o erro detalhado na resposta
-	if app.devMode {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(status)
-		fmt.Fprintf(w, "Internal Server Error\n\nError: %v\n\nStack Trace:\n%s", err, debug.Stack())
-	} else {
-		http.Error(w, http.StatusText(status), status)
-	}
+	http.Error(w, http.StatusText(status), status)
 }
 
 func (app *application) clientError(w http.ResponseWriter, status int) {
@@ -96,14 +82,6 @@ func (app *application) render(
 		// Não chamar serverError aqui para evitar WriteHeader duplo
 		// Apenas logar o erro
 		app.logErr(fmt.Errorf("template execution error: %v", err))
-		if app.devMode {
-			// Se ainda não escreveu nada, mostrar erro
-			if w.Header().Get("Content-Type") == "" {
-				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintf(w, "Template execution error: %v", err)
-			}
-		}
 	}
 }
 
