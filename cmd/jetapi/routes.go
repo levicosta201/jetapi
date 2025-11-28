@@ -11,10 +11,11 @@ import (
 
 type handlerFunc = func(http.ResponseWriter, *http.Request)
 
-func (app *application) routes() *http.ServeMux {
+func (app *application) routes(baseDir string) *http.ServeMux {
 	mux := http.NewServeMux()
 
-	fileServer := http.FileServer(http.Dir("./ui/static"))
+	staticDir := filepath.Join(baseDir, "ui", "static")
+	fileServer := http.FileServer(http.Dir(staticDir))
 	mux.Handle("/static/", http.StripPrefix("/static", fileServer))
 
 	mux.HandleFunc("/", app.home)

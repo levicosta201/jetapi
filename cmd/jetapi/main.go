@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -18,6 +19,21 @@ type application struct {
 	statsMu      sync.Mutex
 	apiCalls     int
 	totalLatency time.Duration
+}
+
+func getBaseDir() string {
+	ex, err := os.Executable()
+	if err != nil {
+		// Fallback para diretório de trabalho atual
+		wd, _ := os.Getwd()
+		return wd
+	}
+	exPath := filepath.Dir(ex)
+	// Se estiver em ./bin/jetapi, sobe um nível para a raiz do projeto
+	if filepath.Base(exPath) == "bin" {
+		return filepath.Dir(exPath)
+	}
+	return exPath
 }
 
 func main() {
@@ -36,7 +52,10 @@ func main() {
 	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
-	templateCache, err := newTemplateCache()
+	baseDir := getBaseDir()
+	infoLog.Printf("Base directory: %s", baseDir)
+
+	templateCache, err := newTemplateCache(baseDir)
 	if err != nil {
 		errorLog.Fatal(err)
 	}
@@ -50,7 +69,7 @@ func main() {
 	srv := &http.Server{
 		Addr:     addr,
 		ErrorLog: errorLog,
-		Handler:  app.routes(),
+		Handler:  app.routes(baseDir),
 	}
 
 	app.infoLog.Print("Starting stats logger")
