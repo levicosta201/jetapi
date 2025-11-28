@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  jetapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jetapi
+    ports:
+      - "${PORT:-8080}:${PORT:-8080}"
+    env_file:
+      - .env
+    environment:
+      - HOST=${HOST:-0.0.0.0}
+      - PORT=${PORT:-8080}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
