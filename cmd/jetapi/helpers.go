@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
@@ -17,12 +18,32 @@ import (
 func (app *application) logErr(err error) {
 	trace := fmt.Sprintf("%v\n%s", err, debug.Stack())
 	app.errorLog.Println(trace)
+	
+	// Em modo de desenvolvimento, também imprime no console de forma mais visível
+	if app.devMode {
+		fmt.Fprintf(os.Stderr, "\n========== ERROR ==========\n")
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(os.Stderr, "===========================\n\n")
+	}
 }
 
 func (app *application) serverError(w http.ResponseWriter, err error) {
 	app.logErr(err)
 	status := http.StatusInternalServerError
-	http.Error(w, http.StatusText(status), status)
+	
+	// Verificar se o header já foi escrito
+	if w.Header().Get("Content-Type") != "" {
+		return
+	}
+	
+	// Em modo de desenvolvimento, mostra o erro detalhado na resposta
+	if app.devMode {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(status)
+		fmt.Fprintf(w, "Internal Server Error\n\nError: %v\n\nStack Trace:\n%s", err, debug.Stack())
+	} else {
+		http.Error(w, http.StatusText(status), status)
+	}
 }
 
 func (app *application) clientError(w http.ResponseWriter, status int) {
@@ -50,11 +71,39 @@ func (app *application) render(
 		return
 	}
 
-	w.WriteHeader(status)
+	// Garantir que data não seja nil e tenha estruturas inicializadas
+	if data != nil {
+		if data.JetPhotos == nil {
+			data.JetPhotos = &sites.JetPhotosResult{Images: []sites.ImageAttributes{}}
+		}
+		if data.FlightRadar == nil {
+			data.FlightRadar = &sites.FlightRadarResult{Flights: []*sites.FlightAttributes{}}
+		}
+	} else {
+		data = &sites.ScrapeResult{
+			JetPhotos:   &sites.JetPhotosResult{Images: []sites.ImageAttributes{}},
+			FlightRadar: &sites.FlightRadarResult{Flights: []*sites.FlightAttributes{}},
+		}
+	}
+
+	// Verificar se o header já foi escrito antes de escrever
+	if w.Header().Get("Content-Type") == "" {
+		w.WriteHeader(status)
+	}
 
 	err := ts.ExecuteTemplate(w, "base", data)
 	if err != nil {
-		app.serverError(w, err)
+		// Não chamar serverError aqui para evitar WriteHeader duplo
+		// Apenas logar o erro
+		app.logErr(fmt.Errorf("template execution error: %v", err))
+		if app.devMode {
+			// Se ainda não escreveu nada, mostrar erro
+			if w.Header().Get("Content-Type") == "" {
+				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(w, "Template execution error: %v", err)
+			}
+		}
 	}
 }
 

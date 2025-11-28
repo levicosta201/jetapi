@@ -44,6 +44,9 @@ func (app *application) api(w http.ResponseWriter, r *http.Request) {
 
 	q, err := app.parseAPIQueries(w, r)
 	if err != nil {
+		if app.devMode {
+			app.errorLog.Printf("Error parsing API queries: %v", err)
+		}
 		app.badRequest(w)
 		return
 	}
@@ -53,36 +56,52 @@ func (app *application) api(w http.ResponseWriter, r *http.Request) {
 	if q.OnlyJP == q.OnlyFR {
 		sr, err := sites.Scrape(q)
 		if sr == nil {
+			if app.devMode {
+				app.errorLog.Printf("Scrape returned nil result for reg: %s, error: %v", q.Reg, err)
+			}
 			app.notFound(w)
 			return
 		}
 
 		if err != nil {
-			app.logErr(fmt.Errorf("Partial Error: %v", err))
+			app.logErr(fmt.Errorf("Partial Error scraping for %s: %v", q.Reg, err))
 		}
 
 		jsonResult, err = json.Marshal(sr)
+		if err != nil {
+			app.serverError(w, fmt.Errorf("Error encoding json for reg %s: %v", q.Reg, err))
+			return
+		}
 	} else if q.OnlyJP {
 		jpRes, err := sites.ScrapeJetPhotos(q)
 		if err != nil {
+			if app.devMode {
+				app.errorLog.Printf("Error scraping JetPhotos for reg: %s, error: %v", q.Reg, err)
+			}
 			app.notFound(w)
 			return
 		}
 
 		jsonResult, err = json.Marshal(jpRes)
+		if err != nil {
+			app.serverError(w, fmt.Errorf("Error encoding JetPhotos json for reg %s: %v", q.Reg, err))
+			return
+		}
 	} else if q.OnlyFR {
 		frRes, err := sites.ScrapeFlightRadar(q)
 		if err != nil {
+			if app.devMode {
+				app.errorLog.Printf("Error scraping FlightRadar for reg: %s, error: %v", q.Reg, err)
+			}
 			app.notFound(w)
 			return
 		}
 
 		jsonResult, err = json.Marshal(frRes)
-	}
-
-	if err != nil {
-		app.serverError(w, fmt.Errorf("Error encoding json: %v", err))
-		return
+		if err != nil {
+			app.serverError(w, fmt.Errorf("Error encoding FlightRadar json for reg %s: %v", q.Reg, err))
+			return
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -93,14 +112,23 @@ func (app *application) aircraftSearch(w http.ResponseWriter, r *http.Request) {
 	page := "aircraft.tmpl.html"
 	q, err := app.parseAPIQueries(w, r)
 	if err != nil {
+		if app.devMode {
+			app.errorLog.Printf("Error parsing API queries in aircraftSearch: %v", err)
+		}
 		app.notFoundPage(w)
 		return
 	}
 	q = &sites.APIQueries{Reg: q.Reg, Photos: 3, Flights: 8}
 	sr, err := sites.Scrape(q)
 	if sr == nil {
+		if app.devMode {
+			app.errorLog.Printf("Scrape returned nil result in aircraftSearch for reg: %s, error: %v", q.Reg, err)
+		}
 		app.notFoundPage(w)
 		return
+	}
+	if err != nil && app.devMode {
+		app.errorLog.Printf("Partial error in aircraftSearch for reg %s: %v", q.Reg, err)
 	}
 	app.render(w, http.StatusOK, page, sr)
 }

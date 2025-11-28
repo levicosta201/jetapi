@@ -7,7 +7,15 @@ An API to gather information from [JetPhotos](https://www.JetPhotos.com) and [Fl
 See the [documentation](https://www.jetapi.dev/documentation) for more information regarding the usage of the API.
 
 ## Getting Started On Your Own
-After cloning the project, one can simply run
+
+**Importante:** Antes de executar, certifique-se de atualizar as dependências:
+
+```bash
+go mod tidy
+```
+
+Depois, você pode executar:
+
 ```
 make run
 ```
@@ -18,6 +26,25 @@ If you do not have `make`,
 go run ./cmd/jetapi
 ```
 suffices.
+
+### Modo de Desenvolvimento (Debug)
+
+Para ver erros detalhados no console e nas respostas HTTP, execute com a variável de ambiente `DEV_MODE=true`:
+
+```bash
+DEV_MODE=true go run ./cmd/jetapi
+```
+
+Ou usando make:
+```bash
+DEV_MODE=true make run
+```
+
+**No modo de desenvolvimento:**
+- Erros são impressos no console com destaque
+- Stack traces completos são mostrados
+- Respostas HTTP de erro incluem detalhes do erro
+- Logs mais verbosos para facilitar debug
 
 Then one can visit [localhost:8080](http://localhost:8080) to view the documentation and build a query for your local instance.
 
@@ -50,6 +77,27 @@ HOST=0.0.0.0
 
 # Porta onde o servidor irá escutar (padrão: 8080)
 PORT=8080
+
+# Configuração do Redis (Cache)
+# Se não configurado, o cache será desabilitado
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
+
+# Configuração do S3 (AWS) - Para armazenamento de imagens
+S3_BUCKET=alfaero
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+S3_BASE_PATH=jetapi
+
+# Configuração do CloudFront (AWS)
+# Se não configurado, as URLs de imagens serão retornadas como originais
+CLOUDFRONT_DOMAIN=d1234567890.cloudfront.net
+CLOUDFRONT_KEY_PAIR_ID=
+CLOUDFRONT_PRIVATE_KEY=
+CLOUDFRONT_TTL=3600
 ```
 
 #### Passo 1: Criar o arquivo .env
@@ -108,10 +156,36 @@ PORT=8080
 ```
 
 **Variáveis disponíveis:**
+
+**Servidor:**
 - `HOST`: Endereço IP onde o servidor irá escutar (padrão: `0.0.0.0`)
 - `PORT`: Porta onde o servidor irá escutar (padrão: `8080`)
+- `DEV_MODE`: Modo de desenvolvimento - mostra erros detalhados (padrão: `false`)
+- `ENV`: Ambiente de execução - use `development` para ativar modo dev (padrão: não definido)
 
-**Nota:** Se você não criar o arquivo `.env`, os valores padrão (HOST=0.0.0.0, PORT=8080) serão utilizados automaticamente.
+**Redis (Cache):**
+- `REDIS_HOST`: Endereço do servidor Redis (padrão: `redis` no Docker Compose, `localhost` caso contrário)
+- `REDIS_PORT`: Porta do Redis (padrão: `6379`)
+- `REDIS_PASSWORD`: Senha do Redis (opcional)
+- `REDIS_DB`: Número do banco de dados Redis (padrão: `0`)
+
+**CloudFront (AWS):**
+- `CLOUDFRONT_DOMAIN`: Domínio do CloudFront (ex: `d1234567890.cloudfront.net`)
+- `CLOUDFRONT_KEY_PAIR_ID`: ID do par de chaves para Signed URLs (opcional)
+- `CLOUDFRONT_PRIVATE_KEY`: Chave privada para assinar URLs (opcional, formato PEM)
+- `CLOUDFRONT_TTL`: Tempo de expiração das URLs assinadas em segundos (padrão: `3600`)
+
+**S3 (AWS) - Para armazenamento de imagens:**
+- `S3_BUCKET`: Nome do bucket S3 (ex: `alfaero`)
+- `AWS_REGION`: Região do AWS (ex: `us-east-1`)
+- `AWS_ACCESS_KEY_ID`: Chave de acesso AWS
+- `AWS_SECRET_ACCESS_KEY`: Chave secreta AWS
+- `S3_BASE_PATH`: Caminho base dentro do bucket (padrão: `jetapi`)
+
+**Nota:** 
+- Se você não criar o arquivo `.env`, os valores padrão serão utilizados automaticamente.
+- O cache (Redis) é opcional. Se não configurado, a API funcionará normalmente sem cache.
+- O CloudFront é opcional. Se não configurado, as URLs de imagens serão retornadas como originais.
 
 ### Usando Docker Compose (Recomendado)
 
@@ -297,6 +371,90 @@ docker build -t jetapi . && docker restart jetapi
 - Verifique se o nome do arquivo é exatamente `.env` (não `.env.txt` ou similar)
 - No Docker Compose, o arquivo `.env` é carregado automaticamente
 - No Docker direto, use `--env-file .env`
+
+**Problema: Redis não conecta**
+```bash
+# Verifique se o container Redis está rodando
+docker-compose ps
+
+# Verifique os logs do Redis
+docker-compose logs redis
+
+# Teste a conexão manualmente
+docker-compose exec redis redis-cli ping
+```
+
+**Problema: CloudFront não funciona**
+- Verifique se o domínio do CloudFront está correto
+- Certifique-se de que o CloudFront está configurado para servir as imagens
+- URLs assinadas requerem KeyPairID e PrivateKey válidos
+
+## Cache e Performance
+
+### Sistema de Cache (Redis)
+
+O JetAPI utiliza Redis para cachear resultados de scraping, melhorando significativamente a performance da API. Quando uma requisição é feita:
+
+1. **Primeira requisição**: O sistema faz scraping dos sites e armazena o resultado no Redis (TTL: 24 horas)
+2. **Requisições subsequentes**: O resultado é recuperado do cache, retornando instantaneamente
+
+**Benefícios:**
+- ⚡ Respostas muito mais rápidas para requisições repetidas
+- 🔄 Reduz carga nos sites de origem (JetPhotos e FlightRadar24)
+- 💾 Economia de recursos do servidor
+- 📊 Melhor experiência para os usuários da API
+
+**Configuração:**
+O Redis é automaticamente iniciado quando você usa `docker-compose up`. Para desenvolvimento local sem Docker, você pode instalar Redis separadamente:
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install redis-server
+
+# macOS
+brew install redis
+
+# Iniciar Redis
+redis-server
+```
+
+### CloudFront (AWS)
+
+O JetAPI suporta integração com Amazon CloudFront para servir imagens através de uma CDN global, proporcionando:
+
+- 🌍 **Distribuição global**: Imagens servidas do edge mais próximo ao usuário
+- ⚡ **Performance otimizada**: Redução significativa de latência
+- 💰 **Economia de banda**: Reduz custos de transferência
+- 🔒 **URLs assinadas**: Suporte a URLs temporárias e seguras (opcional)
+
+**Como funciona:**
+1. Quando uma imagem é encontrada durante o scraping, sua URL original é convertida para CloudFront
+2. A URL do CloudFront é retornada na resposta da API
+3. Os clientes baixam as imagens diretamente do CloudFront (muito mais rápido)
+
+**Configuração do CloudFront:**
+
+1. **Criar uma distribuição CloudFront na AWS:**
+   - Acesse o console da AWS CloudFront
+   - Crie uma nova distribuição
+   - Configure a origem para apontar para o bucket S3 ou servidor onde as imagens estão hospedadas
+   - Anote o domínio da distribuição (ex: `d1234567890.cloudfront.net`)
+
+2. **Configurar no .env:**
+   ```env
+   CLOUDFRONT_DOMAIN=d1234567890.cloudfront.net
+   ```
+
+3. **URLs Assinadas (Opcional):**
+   Para usar URLs assinadas (mais seguro):
+   ```env
+   CLOUDFRONT_DOMAIN=d1234567890.cloudfront.net
+   CLOUDFRONT_KEY_PAIR_ID=APKAIOSFODNN7EXAMPLE
+   CLOUDFRONT_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n..."
+   CLOUDFRONT_TTL=3600
+   ```
+
+**Nota:** O CloudFront é totalmente opcional. Se não configurado, as URLs originais das imagens serão retornadas.
 
 ## More
 The API works best with commercial airliners. 

@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"context"
+	"github.com/macsencasaus/jetapi/internal/cache"
+	"github.com/macsencasaus/jetapi/internal/cloudfront"
 	"github.com/macsencasaus/jetapi/internal/scraper"
 	"golang.org/x/sync/errgroup"
 )
@@ -28,6 +30,18 @@ type ImageAttributes struct {
 }
 
 const jpHomeURL = "https://www.jetphotos.com"
+
+var cloudFrontConverter *cloudfront.CloudFront
+
+// SetCloudFront configura o conversor CloudFront para URLs de imagens
+func SetCloudFront(cf *cloudfront.CloudFront) {
+	cloudFrontConverter = cf
+}
+
+// getCacheManager retorna o cache manager global (definido em sites.go)
+func getCacheManager() *cache.Manager {
+	return cacheManager
+}
 
 func ScrapeJetPhotos(q *APIQueries) (*JetPhotosResult, error) {
 	reg := q.Reg
@@ -71,7 +85,11 @@ func ScrapeJetPhotos(q *APIQueries) (*JetPhotosResult, error) {
 	pageScraper := func(i int, link string) error {
 		photoURL := fmt.Sprintf("%s%s", jpHomeURL, link)
 		images[i].Link = photoURL
-		images[i].Thumbnail = "https:" + thumbnails[i]
+		originalThumbnailURL := "https:" + thumbnails[i]
+		
+		// Processar thumbnail: baixar, fazer upload para S3 e gerar URL CloudFront
+		finalThumbnailURL := processImage(originalThumbnailURL)
+		images[i].Thumbnail = finalThumbnailURL
 
 		b, err := scraper.FetchHTML(photoURL)
 		if err != nil {
@@ -86,7 +104,11 @@ func ScrapeJetPhotos(q *APIQueries) (*JetPhotosResult, error) {
 		if err != nil {
 			return jpError("scraping photo links", reg, URL, err)
 		}
-		images[i].Image = photoLinkArr[0]
+		originalImageURL := photoLinkArr[0]
+		
+		// Processar imagem: baixar, fazer upload para S3 e gerar URL CloudFront
+		finalImageURL := processImage(originalImageURL)
+		images[i].Image = finalImageURL
 
 		// registration + dates
 		res, err := s.ScrapeText("h4", "headerText4 color-shark", 3)
@@ -142,6 +164,61 @@ func ScrapeJetPhotos(q *APIQueries) (*JetPhotosResult, error) {
 	}
 
 	return result, nil
+}
+
+// processImage processa uma imagem: verifica cache, baixa, faz upload para S3 e retorna URL CloudFront
+func processImage(imageURL string) string {
+	cm := getCacheManager()
+	if cm == nil {
+		// Se não tiver S3/CloudFront configurado, retornar URL original
+		if cloudFrontConverter != nil && cloudFrontConverter.IsEnabled() {
+			return cloudFrontConverter.ConvertImageURL(imageURL)
+		}
+		return imageURL
+	}
+
+	s3Manager := cm.GetS3Manager()
+	cf := cm.GetCloudFront()
+
+	// Se S3 não estiver configurado, apenas converter para CloudFront se disponível
+	if s3Manager == nil || !s3Manager.IsEnabled() {
+		if cf != nil && cf.IsEnabled() {
+			return cf.ConvertImageURL(imageURL)
+		}
+		return imageURL
+	}
+
+	// Gerar chave S3
+	s3Key := s3Manager.GetS3Key(imageURL)
+
+	// Verificar se já existe no S3 (cache)
+	exists, err := s3Manager.CheckIfExists(s3Key)
+	if err == nil && exists {
+		// Imagem já existe no S3, gerar URL CloudFront
+		if cf != nil && cf.IsEnabled() {
+			return cf.ConvertS3Key(s3Key)
+		}
+		// Se não tiver CloudFront, retornar URL original
+		return imageURL
+	}
+
+	// Imagem não existe, fazer upload para S3
+	uploadedKey, err := s3Manager.UploadImage(imageURL)
+	if err != nil {
+		// Se falhar o upload, retornar URL original
+		if cf != nil && cf.IsEnabled() {
+			return cf.ConvertImageURL(imageURL)
+		}
+		return imageURL
+	}
+
+	// Gerar URL CloudFront para a imagem no S3
+	if cf != nil && cf.IsEnabled() {
+		return cf.ConvertS3Key(uploadedKey)
+	}
+
+	// Se não tiver CloudFront, retornar URL original
+	return imageURL
 }
 
 func jpError(msg, reg, url string, err error) error {

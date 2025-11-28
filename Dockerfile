@@ -7,14 +7,20 @@ RUN apk add --no-cache git
 # Definir diretório de trabalho
 WORKDIR /app
 
-# Copiar arquivos de dependências
-COPY go.mod go.sum ./
+# Copiar apenas go.mod primeiro para baixar dependências
+COPY go.mod ./
 
-# Baixar dependências
+# Baixar todas as dependências (isso atualizará o go.sum automaticamente)
 RUN go mod download
+
+# Copiar go.sum se existir (opcional, mas ajuda com cache do Docker)
+COPY go.sum* ./
 
 # Copiar código fonte
 COPY . .
+
+# Garantir que todas as dependências estão atualizadas
+RUN go mod tidy
 
 # Compilar a aplicação
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/bin/jetapi ./cmd/jetapi

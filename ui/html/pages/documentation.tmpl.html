@@ -1,82 +1,688 @@
-{{define "title"}}Documentation{{end}} {{define "main"}}
+{{define "title"}}API Documentation{{end}} {{define "main"}}
 
-<h1>Documentation</h1>
-<h2>Request</h2>
-<p>Base URL: <a id="base-url" href="/"></a></p>
-<script>
-    document.getElementById("base-url").textContent = window.location.origin;
-</script>
-<table class="lighter">
-    <tr>
-        <th>API</th>
-        <th>API Method</th>
-    </tr>
-    <tr>
-        <th>Photos and Flight Information</th>
-        <th>/api</th>
-    </tr>
-</table>
+<div class="documentation-container">
+    <h1>JetAPI Documentation</h1>
+    <p class="intro">
+        JetAPI é uma API REST que fornece informações sobre aeronaves, incluindo fotos do JetPhotos e dados de voos do FlightRadar24.
+        Todas as imagens são otimizadas e servidas via CloudFront para máxima performance.
+    </p>
 
-<h2>Request Parameters</h2>
-<table>
-    <tr>
-        <th>Parameter</th>
-        <th></th>
-        <th>Description</th>
-    </tr>
-    <tr>
-        <th>reg</th>
-        <th>Required</th>
-        <th>Aircraft Registration</th>
-    </tr>
-    <tr>
-        <th>photos</th>
-        <th>Optional</th>
-        <th>
-            Number of Latest Photos
-            <br />
-            Default: 3
-            <br />
-            Max: 20
-        </th>
-    </tr>
-    <tr>
-        <th>flights</th>
-        <th>Optional</th>
-        <th>
-            Number of Latest Flights
-            <br />
-            Default: 20
-            <br />
-            Max: 20
-        </th>
-    </tr>
-    <tr>
-        <th>only_jp</th>
-        <th>Optional</th>
-        <th>
-            Whether to only scrape JetPhotos
-            <br />
-            Default: false
-            <br />
-            true/false
-        </th>
-    </tr>
-    <tr>
-        <th>only_fr</th>
-        <th>Optional</th>
-        <th>
-            Whether to only scrape FlightRadar24
-            <br />
-            Default: false
-            <br />
-            true/false
-        </th>
-    </tr>
-</table>
-<p class="message">
-    See the <a href="/querybuilder">Query Builder</a> to interactively create a
-    query.
-</p>
+    <section class="doc-section">
+        <h2>🌐 Base URL</h2>
+        <div class="code-block">
+            <code id="base-url"></code>
+        </div>
+        <script>
+            document.getElementById("base-url").textContent = window.location.origin;
+        </script>
+    </section>
+
+    <section class="doc-section">
+        <h2>📡 Endpoint Principal</h2>
+        <div class="endpoint-info">
+            <div class="method-badge get">GET</div>
+            <code class="endpoint-path">/api</code>
+        </div>
+        <p>Retorna informações sobre uma aeronave, incluindo fotos e histórico de voos.</p>
+    </section>
+
+    <section class="doc-section">
+        <h2>📋 Parâmetros da Requisição</h2>
+        <table class="params-table">
+            <thead>
+                <tr>
+                    <th>Parâmetro</th>
+                    <th>Tipo</th>
+                    <th>Obrigatório</th>
+                    <th>Descrição</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>reg</code></td>
+                    <td>string</td>
+                    <td><span class="badge required">Sim</span></td>
+                    <td>
+                        <strong>Matrícula da aeronave</strong>
+                        <br />
+                        <small>Formato: alfanumérico (pode incluir hífen)</small>
+                        <br />
+                        <small>Exemplos: PR-MHK, N123AB, G-ABCD</small>
+                    </td>
+                </tr>
+                <tr>
+                    <td><code>photos</code></td>
+                    <td>integer</td>
+                    <td><span class="badge optional">Não</span></td>
+                    <td>
+                        <strong>Número de fotos mais recentes</strong>
+                        <br />
+                        <small>Padrão: 3</small>
+                        <br />
+                        <small>Mínimo: 0 | Máximo: 20</small>
+                    </td>
+                </tr>
+                <tr>
+                    <td><code>flights</code></td>
+                    <td>integer</td>
+                    <td><span class="badge optional">Não</span></td>
+                    <td>
+                        <strong>Número de voos mais recentes</strong>
+                        <br />
+                        <small>Padrão: 20</small>
+                        <br />
+                        <small>Mínimo: 0 | Máximo: 20</small>
+                    </td>
+                </tr>
+                <tr>
+                    <td><code>only_jp</code></td>
+                    <td>boolean</td>
+                    <td><span class="badge optional">Não</span></td>
+                    <td>
+                        <strong>Buscar apenas no JetPhotos</strong>
+                        <br />
+                        <small>Valores: <code>true</code> ou <code>false</code></small>
+                        <br />
+                        <small>Padrão: <code>false</code></small>
+                    </td>
+                </tr>
+                <tr>
+                    <td><code>only_fr</code></td>
+                    <td>boolean</td>
+                    <td><span class="badge optional">Não</span></td>
+                    <td>
+                        <strong>Buscar apenas no FlightRadar24</strong>
+                        <br />
+                        <small>Valores: <code>true</code> ou <code>false</code></small>
+                        <br />
+                        <small>Padrão: <code>false</code></small>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="doc-section">
+        <h2>💡 Exemplos de Uso</h2>
+        
+        <div class="example-box">
+            <h3>Exemplo 1: Busca completa (fotos + voos)</h3>
+            <div class="code-block">
+                <code>GET /api?reg=PR-MHK</code>
+            </div>
+            <p class="example-desc">Retorna 3 fotos e 20 voos mais recentes (valores padrão)</p>
+        </div>
+
+        <div class="example-box">
+            <h3>Exemplo 2: Especificando número de fotos e voos</h3>
+            <div class="code-block">
+                <code>GET /api?reg=PR-MHK&photos=5&flights=10</code>
+            </div>
+            <p class="example-desc">Retorna 5 fotos e 10 voos mais recentes</p>
+        </div>
+
+        <div class="example-box">
+            <h3>Exemplo 3: Apenas fotos do JetPhotos</h3>
+            <div class="code-block">
+                <code>GET /api?reg=PR-MHK&only_jp=true&photos=10</code>
+            </div>
+            <p class="example-desc">Retorna apenas 10 fotos do JetPhotos, sem dados de voos</p>
+        </div>
+
+        <div class="example-box">
+            <h3>Exemplo 4: Apenas dados de voos</h3>
+            <div class="code-block">
+                <code>GET /api?reg=PR-MHK&only_fr=true&flights=15</code>
+            </div>
+            <p class="example-desc">Retorna apenas 15 voos do FlightRadar24, sem fotos</p>
+        </div>
+
+        <div class="example-box">
+            <h3>Exemplo 5: Apenas informações básicas (sem fotos nem voos)</h3>
+            <div class="code-block">
+                <code>GET /api?reg=PR-MHK&photos=0&flights=0</code>
+            </div>
+            <p class="example-desc">Retorna apenas informações básicas da aeronave</p>
+        </div>
+    </section>
+
+    <section class="doc-section">
+        <h2>📤 Formato da Resposta</h2>
+        <p>A API retorna dados em formato JSON. A estrutura da resposta varia dependendo dos parâmetros utilizados:</p>
+
+        <h3>Resposta Completa (ambos os serviços)</h3>
+        <pre class="json-example"><code>{
+  "JetPhotos": {
+    "Reg": "PR-MHK",
+    "Images": [
+      {
+        "Image": "https://cloudfront.net/jetapi/image.jpg",
+        "Thumbnail": "https://cloudfront.net/jetapi/thumb.jpg",
+        "Link": "https://www.jetphotos.com/photo/...",
+        "DateTaken": "2024-01-15",
+        "DateUploaded": "2024-01-16",
+        "Location": "São Paulo, Brazil",
+        "Photographer": "John Doe",
+        "Aircraft": "Boeing 737-800",
+        "Serial": "12345",
+        "Airline": "GOL Linhas Aéreas"
+      }
+    ]
+  },
+  "FlightRadar": {
+    "Aircraft": "Boeing 737-800",
+    "Airline": "GOL Linhas Aéreas",
+    "Operator": "GOL",
+    "TypeCode": "B738",
+    "AirlineCode": "G3",
+    "OperatorCode": "G3",
+    "ModeS": "E48B1A",
+    "Flights": [
+      {
+        "Date": "2024-01-20",
+        "From": "SBGR",
+        "To": "SBSP",
+        "Flight": "G3 1234",
+        "FlightTime": "00:45",
+        "STD": "10:00",
+        "ATD": "10:05",
+        "STA": "10:45",
+        "Status": "Landed"
+      }
+    ]
+  }
+}</code></pre>
+
+        <h3>Resposta Apenas JetPhotos</h3>
+        <pre class="json-example"><code>{
+  "Reg": "PR-MHK",
+  "Images": [
+    {
+      "Image": "https://cloudfront.net/jetapi/image.jpg",
+      "Thumbnail": "https://cloudfront.net/jetapi/thumb.jpg",
+      ...
+    }
+  ]
+}</code></pre>
+
+        <h3>Resposta Apenas FlightRadar</h3>
+        <pre class="json-example"><code>{
+  "Aircraft": "Boeing 737-800",
+  "Airline": "GOL Linhas Aéreas",
+  "Flights": [...]
+}</code></pre>
+    </section>
+
+    <section class="doc-section">
+        <h2>🔢 Códigos de Status HTTP</h2>
+        <table class="status-table">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Significado</th>
+                    <th>Descrição</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="status-code success">200</span></td>
+                    <td>OK</td>
+                    <td>Requisição bem-sucedida, dados retornados</td>
+                </tr>
+                <tr>
+                    <td><span class="status-code error">400</span></td>
+                    <td>Bad Request</td>
+                    <td>Parâmetros inválidos (ex: matrícula com caracteres especiais)</td>
+                </tr>
+                <tr>
+                    <td><span class="status-code error">404</span></td>
+                    <td>Not Found</td>
+                    <td>Aeronave não encontrada ou sem dados disponíveis</td>
+                </tr>
+                <tr>
+                    <td><span class="status-code error">405</span></td>
+                    <td>Method Not Allowed</td>
+                    <td>Método HTTP não permitido (apenas GET é suportado)</td>
+                </tr>
+                <tr>
+                    <td><span class="status-code error">500</span></td>
+                    <td>Internal Server Error</td>
+                    <td>Erro interno do servidor</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="doc-section">
+        <h2>⚡ Performance e Cache</h2>
+        <div class="info-box">
+            <h3>Cache Inteligente</h3>
+            <ul>
+                <li><strong>Redis Cache:</strong> Resultados são cacheados por 24 horas para respostas instantâneas</li>
+                <li><strong>S3 Storage:</strong> Imagens são baixadas e armazenadas no S3, evitando downloads repetidos</li>
+                <li><strong>CloudFront CDN:</strong> Todas as imagens são servidas via CloudFront para máxima velocidade global</li>
+            </ul>
+            <p class="note">
+                <strong>💡 Dica:</strong> A primeira requisição pode ser mais lenta (download e upload de imagens).
+                Requisições subsequentes são extremamente rápidas graças ao cache.
+            </p>
+        </div>
+    </section>
+
+    <section class="doc-section">
+        <h2>🌐 Outros Endpoints</h2>
+        <table class="endpoints-table">
+            <thead>
+                <tr>
+                    <th>Endpoint</th>
+                    <th>Método</th>
+                    <th>Descrição</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>/aircraft</code></td>
+                    <td>GET</td>
+                    <td>Página HTML com visualização de aeronave (ex: <code>/aircraft?reg=PR-MHK</code>)</td>
+                </tr>
+                <tr>
+                    <td><code>/querybuilder</code></td>
+                    <td>GET</td>
+                    <td>Ferramenta interativa para construir queries da API</td>
+                </tr>
+                <tr>
+                    <td><code>/documentation</code></td>
+                    <td>GET</td>
+                    <td>Esta página de documentação</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="doc-section">
+        <h2>🛠️ Ferramentas Úteis</h2>
+        <div class="tools-box">
+            <p>
+                Use o <a href="/querybuilder" class="link-button">Query Builder</a> para construir e testar suas queries de forma interativa.
+            </p>
+            <p>
+                Teste a API diretamente no navegador ou use ferramentas como:
+            </p>
+            <ul>
+                <li><strong>cURL:</strong> <code>curl "http://localhost:8080/api?reg=PR-MHK"</code></li>
+                <li><strong>Postman:</strong> Importe a coleção ou crie requisições GET</li>
+                <li><strong>JavaScript Fetch:</strong> Veja exemplos abaixo</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="doc-section">
+        <h2>💻 Exemplos de Código</h2>
+        
+        <div class="code-example">
+            <h3>JavaScript (Fetch API)</h3>
+            <pre><code>fetch('/api?reg=PR-MHK&photos=5')
+  .then(response => response.json())
+  .then(data => {
+    console.log('Fotos:', data.JetPhotos.Images);
+    console.log('Voos:', data.FlightRadar.Flights);
+  })
+  .catch(error => console.error('Erro:', error));</code></pre>
+        </div>
+
+        <div class="code-example">
+            <h3>Python (requests)</h3>
+            <pre><code>import requests
+
+response = requests.get('http://localhost:8080/api', params={
+    'reg': 'PR-MHK',
+    'photos': 5,
+    'flights': 10
+})
+
+data = response.json()
+print(data['JetPhotos']['Images'])
+print(data['FlightRadar']['Flights'])</code></pre>
+        </div>
+
+        <div class="code-example">
+            <h3>cURL</h3>
+            <pre><code>curl "http://localhost:8080/api?reg=PR-MHK&photos=5&flights=10"</code></pre>
+        </div>
+    </section>
+
+    <section class="doc-section">
+        <h2>⚠️ Limitações e Notas</h2>
+        <div class="warning-box">
+            <ul>
+                <li>A API funciona melhor com aeronaves comerciais</li>
+                <li>Aeronaves de aviação geral (GA) podem causar erros devido à variabilidade nas páginas do FlightRadar</li>
+                <li>Matrículas não encontradas retornam erro 404</li>
+                <li>O número máximo de fotos e voos é 20 por requisição</li>
+                <li>Imagens são automaticamente otimizadas e servidas via CloudFront</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="doc-section">
+        <div class="cta-box">
+            <h2>🚀 Pronto para começar?</h2>
+            <p>Use o Query Builder para testar a API ou faça sua primeira requisição!</p>
+            <div class="button-group">
+                <a href="/querybuilder" class="button primary">Query Builder</a>
+                <a href="/" class="button secondary">Voltar ao Início</a>
+            </div>
+        </div>
+    </section>
+</div>
+
+<style>
+.documentation-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.intro {
+    font-size: 1.1rem;
+    color: #666;
+    margin-bottom: 2rem;
+    line-height: 1.6;
+}
+
+.doc-section {
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid #eee;
+}
+
+.doc-section:last-child {
+    border-bottom: none;
+}
+
+.doc-section h2 {
+    color: #333;
+    margin-bottom: 1.5rem;
+    font-size: 1.8rem;
+}
+
+.doc-section h3 {
+    color: #555;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    font-size: 1.3rem;
+}
+
+.code-block {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 1rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+}
+
+.code-block code {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    color: #d63384;
+}
+
+.endpoint-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.method-badge {
+    padding: 0.3rem 0.8rem;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 0.85rem;
+}
+
+.method-badge.get {
+    background: #28a745;
+    color: white;
+}
+
+.endpoint-path {
+    font-family: 'Courier New', monospace;
+    font-size: 1.1rem;
+    color: #333;
+}
+
+.params-table, .status-table, .endpoints-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+}
+
+.params-table th, .status-table th, .endpoints-table th {
+    background: #f8f9fa;
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+}
+
+.params-table td, .status-table td, .endpoints-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid #dee2e6;
+    vertical-align: top;
+}
+
+.params-table code, .endpoints-table code {
+    background: #f5f5f5;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.badge.required {
+    background: #dc3545;
+    color: white;
+}
+
+.badge.optional {
+    background: #6c757d;
+    color: white;
+}
+
+.example-box {
+    background: #f8f9fa;
+    border-left: 4px solid #007bff;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    border-radius: 4px;
+}
+
+.example-box h3 {
+    margin-top: 0;
+    color: #007bff;
+}
+
+.example-desc {
+    margin-top: 0.5rem;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.json-example {
+    background: #282c34;
+    color: #abb2bf;
+    padding: 1.5rem;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin: 1rem 0;
+}
+
+.json-example code {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    line-height: 1.6;
+}
+
+.status-code {
+    display: inline-block;
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+}
+
+.status-code.success {
+    background: #28a745;
+    color: white;
+}
+
+.status-code.error {
+    background: #dc3545;
+    color: white;
+}
+
+.info-box, .warning-box {
+    background: #e7f3ff;
+    border-left: 4px solid #007bff;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    border-radius: 4px;
+}
+
+.warning-box {
+    background: #fff3cd;
+    border-left-color: #ffc107;
+}
+
+.info-box ul, .warning-box ul {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+}
+
+.info-box li, .warning-box li {
+    margin: 0.5rem 0;
+    line-height: 1.6;
+}
+
+.note {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: white;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.tools-box {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 4px;
+    margin: 1.5rem 0;
+}
+
+.tools-box ul {
+    margin: 1rem 0;
+    padding-left: 1.5rem;
+}
+
+.code-example {
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+}
+
+.code-example h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+.code-example pre {
+    background: #282c34;
+    color: #abb2bf;
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin: 0.5rem 0;
+}
+
+.code-example code {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    line-height: 1.6;
+}
+
+.cta-box {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2.5rem;
+    border-radius: 8px;
+    text-align: center;
+    margin-top: 3rem;
+}
+
+.cta-box h2 {
+    color: white;
+    margin-bottom: 1rem;
+}
+
+.cta-box p {
+    font-size: 1.1rem;
+    margin-bottom: 1.5rem;
+    opacity: 0.95;
+}
+
+.button-group {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.button {
+    display: inline-block;
+    padding: 0.75rem 2rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.button.primary {
+    background: white;
+    color: #667eea;
+}
+
+.button.secondary {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: 2px solid white;
+}
+
+.link-button {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.link-button:hover {
+    text-decoration: underline;
+}
+</style>
 
 {{end}}

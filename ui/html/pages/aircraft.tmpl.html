@@ -2,7 +2,8 @@
 
 <div class="search_container">
     <div class="aircraft_image">
-        {{ range .JetPhotos.Images }}
+        {{ with .JetPhotos }}
+            {{ range .Images }}
         <div class="aircraft_image">
             <a href="{{.Link}}" target="_blank">
                 <img src="{{.Thumbnail}}" />
@@ -16,9 +17,12 @@
             </div>
         </div>
         {{ end }}
+        {{ end }}
     </div>
     <div class="info_container">
-        <h1 class="reg">{{.JetPhotos.Reg}}</h1>
+        {{ with .JetPhotos }}
+        <h1 class="reg">{{.Reg}}</h1>
+        {{ end }}
         {{with .FlightRadar}}
         <h2>Aircraft</h2>
         <p>{{.Aircraft}}</p>
